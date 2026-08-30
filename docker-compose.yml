@@ -1,0 +1,58 @@
+# Root Level Orchestration
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: devpilot-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devpilotpassword
+      POSTGRES_DB: devpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devpilot-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://postgres:devpilotpassword@db:5432/devpilot
+      - JWT_SECRET=devpilot-super-secret-key-2026
+      - ENGINE_URL=http://engine:3001
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  engine:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    container_name: devpilot-engine
+    restart: always
+    environment:
+      - PORT=3001
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: devpilot-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
